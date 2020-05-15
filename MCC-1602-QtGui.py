@@ -100,6 +100,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.srate = 500000
         self.CHUNKSZ = 1024  # int(self.srate/1000)
         self.plot_iter = 0
+        # TEST SPEED LIMITS WITH BUFFER LENGTH AND TIMER INTERVAL
+        self.max_buffer_len = 10
+        self.timer_interval = 10
+
+        self.data_buffer = deque([],self.max_buffer_len)
         self.setupThreads()
         self.open_settings()
         self.showMaximized()
@@ -118,59 +123,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Time Plot Properties
         self.win = self.graphicsView
-        ############## test 1 PLotWidget ###############################################
-        # self.win.plotItem.setRange(
-        #     xRange=[0, self.CHUNKSZ], yRange=[-35000, 35000], padding=0,
-        #     disableAutoRange=True)
-        # self.win.setMouseEnabled(x=True, y=False)
-        # self.win.showGrid(True, True, 0.5)
-        # self.win.setLabel('bottom', 'Time', units='s')
-        # self.win.setLabel('left', 'Amplitude', units='counts')
-        ############## test 2 GraphicsLayoutWidget ####################################
-        # self.win.clear()
-        # self.data1 = np.zeros(2*self.CHUNKSZ)
-        # self.plot_index = 0
-        # self.p1 = self.win.addPlot(row=0, col=1)
-        # self.p1.setDownsampling(mode='peak')
-        # self.p1.setClipToView(True)
-        # self.p1.setLimits(xMin=0, xMax=2*self.CHUNKSZ, yMin=-32768, yMax=32767)
-        # self.p1.disableAutoRange()
-        # self.p1.setXRange(0, 2*self.CHUNKSZ)
-        # self.p1.setYRange(-32768, 32767)
-        # self.curve1 = self.p1.plot(self.data1, pen='b')
-        # self.win.addLabel('Time [s]', row=1, col=1)
-        # self.win.addLabel('Amplitud [counts]', row=0, col=0, angle=-90)
         ############## test 3 GraphicsLayoutWidget ####################################
         self.win.clear()
         self.max_chunks = 10
         self.p1 = self.win.addPlot()
+        self.empty_plot()
         self.p1.setDownsampling(mode='peak')
         self.p1.disableAutoRange()
         self.p1.setXRange(-self.CHUNKSZ, 0)
         self.p1.setYRange(-32768, 32767)
-        self.curves = []
         self.ptr = 0
-        self.data1 = np.empty((self.CHUNKSZ+1, 2))
-        self.win.addLabel('Time [s]', row=1, col=1)
+        self.p1.setLabel(axis='left', text='Time [s]')
+        self.p1.setLabel(axis='bottom', text='Amplitude [counts]')
         # self.win.addLabel('Amplitud [counts]', row=0, col=0, angle=-90)
-        ############## test 4 PlotWidget (arrayToQPath) ################################
-        # self.win.clear()  # .plotItem
-        # self.win.setMouseEnabled(x=True, y=False)
-        # self.win.showGrid(True, True, 0.5)
-        # self.win.setLabel('bottom', 'Time', units='s')
-        # self.win.setLabel('left', 'Amplitude', units='counts')
-        # self.ptr = 0
-        # self.n = 5
-        # self.win.setRange(
-        #     xRange=[0, self.CHUNKSZ*self.n], yRange=[-35000, 35000], padding=0,
-        #     disableAutoRange=True)
-        # self.win.enableAutoRange(False, False)
-        # self.x = np.arange(self.n*self.CHUNKSZ)
-        # self.ydata = np.zeros((self.n*self.CHUNKSZ))
-        # self.conn = np.ones((self.n*self.CHUNKSZ))
-        # self.item = QtGui.QGraphicsPathItem()
-        # self.item.setPen(pg.mkPen('b', width=2, style=QtCore.Qt.SolidLine))
-        # self.win.addItem(self.item)
 
         #####################################################################################
         # Spectrogram Properties
@@ -201,8 +166,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.img.setAutoDownsample(True)
         self.win2.addItem(self.img)
 
-        # self.img_array = np.zeros((1000, int(self.CHUNKSZ/2)+1))
         self.img_index = 2
+
         # bipolar colormap
 
         pos = np.array([0., 1., 0.5, 0.25, 0.75])
@@ -214,15 +179,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.img.setLookupTable(lut)
         self.img.setLevels([-50, 40])
 
-        # freq = np.arange((256/2)+1)/(float(256)/self.srate)
-        # yscale = 1.0/(self.img_array.shape[1]/freq[-1])
-        # self.img.scale((1./self.srate)*256, yscale)
         freq = np.arange((self.CHUNKSZ/2)+1)/(float(self.CHUNKSZ)/self.srate)
         yscale = 1.0/(self.img_array.shape[1]/freq[-1])
         self.img.scale((1./self.srate)*self.CHUNKSZ, yscale)
 
         self.hann = np.hanning(self.CHUNKSZ)
-        # self.empty_plot()  # UNCOMMENT DESPUES DE TESTEO TIME PLOT
+
 ################################### test 1 s####################################
         # # Add a histogram with which to control the gradient of the image
         # hist = pg.HistogramLUTItem()
@@ -247,13 +209,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     # Plot allocation
 
     def empty_plot(self):
-        # self.timedata = np.zeros(self.CHUNKSZ)
-        # self.x = np.arange(0, self.CHUNKSZ, 1)
-        # self.set_plot_data(self.x, self.timedata)
-        # self.data1 = np.zeros(5*self.CHUNKSZ)
-        # self.curve1 = self.p1.plot(self.data1, pen='b')
+        self.timedata = np.zeros(self.CHUNKSZ)
+        self.x = np.arange(0, self.CHUNKSZ, 1)
+        self.wave = self.p1.plot(self.x, self.timedata, pen=pg.mkPen(
+            'b', style=QtCore.Qt.SolidLine), clear=True)
         self.clipBar.setValue(0)
-
         self.image_index = 2
 
     def setupThreads(self):
@@ -263,25 +223,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.daq_worker.moveToThread(self.daq_thread)
         self.daq_thread.start()
         # conexiones Thread -> Main
-        self.daq_worker.chunk_signal.connect(self.update)
+        self.daq_worker.chunk_signal.connect(self.get_data)
         # conexiones Main -> Thread
         self.StartButton.clicked.connect(self.daq_worker.start_scan)
         # self.StopButton.clicked.connect(self.daq_worker.stop_daq_thread) NOT WORKING
         self.daq_worker.finished_signal.connect(self.forceWorkerReset)
         # self.daq_thread.finished.connect(self.worker.deleteLater)
-        # # Playback Thread
-        # self.play_thread = QThread()          UNCOMMENT PARA PLAY HASTA FINAL
-        # self.play_worker = PlayThread(self.srate, self.CHUNKSZ)
-        # self.play_worker.moveToThread(self.play_thread)
-        # self.play_thread.start()
-        # # Play thread signals
-        # self.StartButton.clicked.connect(self.play_worker.open_stream)
-        # self.StopButton.clicked.connect(self.play_worker.end_stream)
-        # self.daq_worker.chunk_signal.connect(self.play_worker.get_signal)
 
     def stop(self):
         self.toggle_buttons()
         self.daq_worker.stop_daq_thread()
+        self.timer.stop()
         self.empty_plot()  # UNCOMMENT DESPUES DE TESTEO PLOT
         # self.play_worker.end_stream() UNCOMMENT PARA PLAY
 
@@ -337,57 +289,29 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.filenameLabel.setText('Status: Recording to ' + self.rec_settings.FolderLabel.text() +
                                    '/' + self.rec_settings.NamePrefixLabel.text() + '...')
         self.startTime = pg.ptime.time()
+        self.animation()
 
     def set_plot_data(self, x, y):
-        self.win.plot(x, y, pen=pg.mkPen('b', style=QtCore.Qt.SolidLine), clear=True)
+        self.win.plot()
+
+    def animation(self):
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.update)
+        self.timer.start(self.timer_interval)
+
 
     @QtCore.pyqtSlot(np.ndarray)
-    def update(self, chunk):
-        self.chunk1 = copy(chunk)
-        # # time series rolling array
-        # now = pg.ptime.time()
-        # self.timedata = np.roll(self.timedata, -len(self.chunk1))
-        # self.timedata[-len(self.chunk1):] = self.chunk1
-        # self.set_plot_data(self.x, self.timedata)
-        # print("Plot time: %0.4f sec" % (pg.ptime.time()-now))
-############## test 1 #########################################################
-        # self.data1[:len(self.chunk1)] = self.data1[-len(self.chunk1):]
-        # self.data1[-len(self.chunk1):] = self.chunk1  # shift data in the array one sample left
-        # self.curve1.setData(self.data1)
-        # print("Plot time: %0.4f sec" % (pg.ptime.time()-now))
-############## test 2 #########################################################
-        # if self.plot_index == 20*self.CHUNKSZ:
-        #     self.plot_index = 0
-        # self.data1[self.plot_index:self.plot_index+self.CHUNKSZ] = self.chunk1
-        # self.curve1.setData(self.data1)
-        # self.plot_index += self.CHUNKSZ
-        # print("Plot time: %0.4f sec" % (pg.ptime.time()-now))
-############## test 3 #########################################################
-        now = pg.ptime.time()
-        for c in self.curves:
-            c.setPos(-(self.CHUNKSZ), 0)
+    def get_data(self, chunk):
+        self.chunkc = copy(chunk)
+        self.data_buffer.append(self.chunkc)
 
-        curve = self.p1.plot(pen='b')
-        self.curves.append(curve)
-        if len(self.curves) > 2:  # > self.max_chunks
-            c = self.curves.pop(0)
-            self.p1.removeItem(c)
-        curve.setData(x=np.arange(0, self.CHUNKSZ), y=self.chunk1)
-        # print("Plot time: %0.4f sec" % (pg.ptime.time()-now))
+    @pyqtSlot()
+    def update(self):
+        # self.chunk1 = copy(chunk)
+        self.chunk1 = self.data_buffer.popleft()
+############### test 5 ################################
 
-############## test 4 (arrayToPyqtGraph) ######################################
-        # now = pg.ptime.time()
-        # if self.ptr == self.n*self.CHUNKSZ:
-        #     self.ptr = 0
-        #     self.ydata.fill(0)
-        # self.ydata[self.ptr:self.ptr+self.CHUNKSZ] = self.chunk1
-        # self.ptr += self.CHUNKSZ
-        # # if self.ptr == int(self.n/2):
-        # path = pg.arrayToQPath(self.x, self.ydata, self.conn)
-        # self.item.setPath(path)
-        # print("Plot time: %0.4f sec" % (pg.ptime.time()-now))
-############### test 5 (resampling chunk test) ################################
-
+        self.wave.setData(self.x, self.chunk1)
 ######################################################################
         # Spectrogram
         # normalized, windowed frequencies in data chunk

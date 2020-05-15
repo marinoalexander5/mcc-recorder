@@ -1,0 +1,6 @@
+Python 3.8 issue with time.clock()
+- replace with time.processtime() in pyqtgraph - ptime
+
+mcculw isuue with dlls
+- add 'C:\Program Files (x86)\Measurement Computing\DAQ\...' before 'cb32.dll'
+in mcculw ul file

@@ -8,6 +8,7 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from pyqtgraph import GraphicsLayoutWidget
+from pyqtgraph import GraphicsWindow
 
 
 class Ui_MainWindow(object):
@@ -88,6 +89,8 @@ class Ui_MainWindow(object):
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.graphicsView = GraphicsLayoutWidget(
             self.centralwidget)  # PlotWidget(self.centralwidget)
+        # self.graphicsView = GraphicsWindow()
+
         sizePolicy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
