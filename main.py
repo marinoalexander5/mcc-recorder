@@ -306,16 +306,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
             self.toggle_buttons()
 
-        # if self.play_thread.isRunning(): UNCOMMENT PARA PLAY
-        #     # print('Quitting Thread')
-        #     # self.daq_thread.quit
-        #
-        #     print('Terminating thread.')
-        #     self.play_thread.terminate()
-        #
-        #     print('Waiting for thread termination.')
-        #     self.play_thread.wait()
-
         # print('building new working object.')
         self.setupThreads()
 
@@ -625,16 +615,6 @@ class DaqThread(QObject):
                         # opcion 1
                         self.chunk_ls.append(self.write_chunk_array[i]-32768)
 
-                        # # opcion 2
-                        # write_data = struct.pack("<h", self.write_chunk_array[i])
-                        # f.writeframesraw(write_data)
-
-                        # # opcion 3
-                        # f.writeframes(str(self.write_chunk_array[i]))
-                        # # Ver si va str o binary o que formato ?????
-                        # Write_chunk_array[i] es un int
-                        # f.writeframes(b''.join(self.write_chunk_array))
-
                     # opcion 4
                     self.chunk_np = np.asarray(self.chunk_ls, dtype=np.int16)
                     # resampled_chunk = samplerate.resample(self.chunk_np, 44100. /
@@ -646,19 +626,6 @@ class DaqThread(QObject):
                     # self.file_ls.extend(self.chunk_ls)
                     self.chunk_ls = []
 
-                    # # opcion 2
-                    # for i in range(self.write_chunk_size):
-                    #     write_data = struct.pack("<h", self.write_chunk_array[i])
-                    #     f.writeframesraw(write_data)
-
-                    # # opcion 3
-                    # for i in range(self.write_chunk_size):
-                    #     f.writeframes(str(self.write_chunk_array[i]))
-                    #     # Ver si va str o binary o que formato ?????
-                    #     f.writeframes(b''.join(self.write_chunk_array))
-
-                    # if len(self.file_ls) % self.ul_buffer_count == 0:
-                    #     print("wrote buffer")
 
                 else:
                     self.wrote_chunk = False
@@ -718,146 +685,6 @@ class DaqThread(QObject):
     #     self.wait()
 
 
-# class PlayThread(QObject):
-#     def __init__(self, srate, chunksize):
-#         super(PlayThread, self).__init__()
-
-####################### Opcion 1 ########################
-    #     self.srate = srate
-    #     self.playback_buffer = deque()  # No me deja iterar sobre numpy indexes, trabajar con listas
-    #     self.data = []
-    #
-    # @QtCore.pyqtSlot(np.ndarray)
-    # def get_signal(self, chunk):
-    #     print('entro en get_signal')
-    #     chunk2 = copy(chunk)
-    #     resampled_chunk = resampy.resample(chunk2, self.srate, 44100)
-    #     self.playback_buffer.extend(resampled_chunk)
-    #
-    # def callback(self, outdata, frames, time, status):
-    #     if status:
-    #         print("Playback Error: {}".format(status))
-    #     print('callback', 'frames', frames)
-    #     print('PB antes', len(self.playback_buffer))
-    #     try:
-    #         if len(self.playback_buffer) < 5*frames:
-    #             print('check 1')
-    #             outdata[len(playback_buffer):, 0].fill(0)
-    #         else:
-    #             for i in range(frames):
-    #                 self.data.append(self.playback_buffer.popleft())
-    #             self.data_np = np.asarray(self.data, dtype=np.int16)
-    #             self.data = []
-    #             if len(self.data_np) < len(outdata):  # no debería pasar nunca???
-    #                 print('check 4')
-    #                 raise sd.CallbackStop()
-    #             else:
-    #                 print('check 5')
-    #                 outdata[:, 0] = self.data_np
-    #     except:
-    #         print('callback end')
-    #         self.end_stream()
-    # #
-    #
-    # def open_stream(self):
-    #     print('open stream')
-    #     self.stream = sd.OutputStream(channels=1, blocksize=4096, callback=self.callback)
-    #     self.stream.start()
-    #             # with sd.OutputStream(channels=1, callback=self.callback) as s:  pareceria bloquear el thread entero y get signal no recibe
-    #             #     print('en algun logar de stream')
-    #         #         while s.active:
-    #         #             time.sleep(0.1)
-    #         # #
-    #
-    # def end_stream(self):
-    #     print('end stream')
-    #     raise sd.CallbackStop()
-    #     self.stream.abort()
-    #     self.stream.close()
-
-# Opcion 2 ########################## mejor opcion por ahora UNCOMMENT PARA PLAY
-# PUESTO PARA QUE LEA DIRECTO ARRAY (90SAMPLES), VER COMO ESTIRAR A 2048?
-    #     self.srate = srate
-    #     self.chunksize = chunksize
-    #     self.playback_buffer = deque()
-    #     self.data = []
-    #     self.resampled_rate = 44100
-    #     self.res_chunk_size = round((self.resampled_rate * self.chunksize) / self.srate)
-    #
-    # @QtCore.pyqtSlot(np.ndarray)
-    # def get_signal(self, chunk):
-    #     print('entro en get_signal')
-    #     chunk2 = copy(chunk)
-    #     resampled_chunk = resampy.resample(chunk2, self.srate, self.resampled_rate)
-    #     self.playback_buffer.append(resampled_chunk)
-    #
-    # def callback(self, outdata, frames, time, status):
-    #     if status:
-    #         print("Playback Error: {}".format(status))
-    #     print('callback')
-    #     try:
-    #         if len(self.playback_buffer) == 0:
-    #             outdata[:, 0].fill(0)
-    #         else:
-    #             data = self.playback_buffer.popleft()
-    #             print('frames', frames)
-    #             outdata[:, 0] = data
-    #     except:
-    #         print('callback emd')
-    #         self.end_stream()
-    #
-    # def open_stream(self):
-    #     print('open stream')
-    #     self.stream = sd.OutputStream(
-    #         channels=1, blocksize=self.res_chunk_size, callback=self.callback)
-    #     self.stream.start()
-    #                 # !!! seems to freeze rest of the thread
-    #                 # with sd.OutputStream(channels=1, callback=self.callback) as s: # blocksize=cambia frames???, latency=float permite sincrinzar con espectrograma
-    #                 #     while s.active:
-    #                 #         time.sleep(0.1)
-    #
-    # def end_stream(self):
-    #     print('end sream')
-    #     raise sd.CallbackStop()
-    #     self.stream.abort()
-    #     self.stream.close()
-####################### Opcion 3 soundevice documentation ###########################################################
-
-    # # Sounddevice using queue
-    # blocksize = 2048
-    # buffersize = 20
-    # q = queue.Queue(maxsize=buffersize)
-    #
-    # def callback(outdata, frames, time, status):
-    #     assert frames == blocksize
-    #     if status.output_underflow:
-    #         print('Output underflow: increase blocksize?', file=sys.stderr)
-    #     raise sd.CallbackAbort
-    #     assert not status
-    #     try:
-    #         data = q.get_nowait()
-    #     except queue.Empty:
-    #         print('Buffer is empty: increase buffersize?', file=sys.stderr)
-    #         raise sd.CallbackAbort
-    #     if len(data) < len(outdata):
-    #         outdata[:len(data)] = data
-    #         outdata[len(data):] = b'\x00' * (len(outdata) - len(data))
-    #         raise sd.CallbackStop
-    #     else:
-    #         outdata[:] = data
-    #
-    # @pyqtSlot(np.ndarray)
-    # def add_chunk(self, chunk):
-    #     print('received chunk', len(chunk))
-    #     try:
-    #         data = chunk
-    #         q.put_nowait(data)
-    #
-    #         outstream = sd.OutputStream(samplerate=44100, blocksize=blocksize,
-    #                                     channels=1, dtype=np.int16, callback=callback)
-    #
-    #     except Exception as e:
-    #         print(type(e).__name__ + ': ' + str(e))
 
 if __name__ == '__main__':
     # app = QtWidgets.QApplication(sys.argv)
@@ -867,26 +694,4 @@ if __name__ == '__main__':
     # sys.exit(app.exec_())
     exit_code = appctxt.app.exec_()
     sys.exit(exit_code)
-    #########################################
 
-    # Si tengo problemas con numeros muy grandes:
-    # 1) cuando escribo file pongo prev_count = 0; en los condicionales
-    #    multiplico prev_count por el "num_file_index" para llevarlo a su
-    #    valor real
-    # 2) cuando escribo file pongo prev_count = 0; en los condicionales
-    #    divido curr_count por el "num_file_index" para que sea comparable
-    #    con prev_count y se manejen valores bajos
-
-    # def quit(self):
-    #     choice = QtWidgets.QMessageBox.question(self, 'GIAS',
-    #                                             "Are you sure you want to quit?",
-    #                                             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-    #     if choice == QtWidgets.QMessageBox.Yes:
-    #         self.get_thread.close()
-    #         self.get_thread.quit()
-    #         sys.exit()
-    #     else:
-    #         pass
-
-
-# ui to py gui: pyuic5 input.ui -o output.py
