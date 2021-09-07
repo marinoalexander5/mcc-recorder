@@ -49,7 +49,7 @@ class Settings(QtWidgets.QDialog, Ui_Dialog):
         self.setupUi(self)
         self.setWindowTitle("Recorder Settings")
         self.setWindowIcon(QtGui.QIcon(
-            'C:/Users/Camila/Desktop/Alex/Untref/Bioacústica/GIAS/MCC DAQ software python/GIAS_icon_3.png'))
+            './GIAS_icon_3.png'))
         self.BrowseButton.clicked.connect(self.browseSlot)
         reg_ex = QRegExp("[^\\\/:*?<>|]+")
         input_validator = QtGui.QRegExpValidator(reg_ex, self.NamePrefixLabel)
@@ -87,10 +87,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.setWindowTitle("GIAS Recorder")
         self.setWindowIcon(QtGui.QIcon(
-            'C:/Users/Camila/Desktop/Alex/Untref/Bioacústica/GIAS/MCC DAQ software python/GIAS_icon.png'))
+            './GIAS_icon.png'))
         self.StartButton.clicked.connect(self.start)
         self.StartButton.setIcon(QtGui.QIcon(
-            'C:/Users/Camila/Desktop/Alex/Untref/Bioacústica/GIAS/MCC DAQ software python/Rec_button.png'))
+            './Rec_button.png'))
         self.SettingsButton.clicked.connect(self.open_settings)
         self.StopButton.clicked.connect(self.stop)
         self.progressBar.setMaximum(32768)
@@ -300,7 +300,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.timer.start(self.timer_interval)
 
 
-    @QtCore.pyqtSlot(np.ndarray)
+    @pyqtSlot(np.ndarray)
     def get_data(self, chunk):
         self.chunkc = copy(chunk)
         self.data_buffer.append(self.chunkc)
@@ -536,7 +536,6 @@ class DaqThread(QObject):
                         print("BUFFER OVERRUN")
                         QtGui.QMessageBox.critical(self, "Warning", "A buffer overrun occurred")
                         break
-                        # VER COMO HACER PARA EVITAR QUE CIERRE EL PROGRAMA:
 
                     for i in range(self.write_chunk_size):
 
@@ -589,15 +588,14 @@ class DaqThread(QObject):
                     prev_index += self.write_chunk_size
                     # Wrap prev_index to the size of the UL buffer
                     prev_index %= self.ul_buffer_count
-
-                    if prev_count % self.points_to_write == 0:
+                    if prev_count % (self.write_chunk_size * np.round(self.points_to_write / self.write_chunk_size)) == 0:
                         # self.file_signal.emit(self.file_np)
                         # self.write_wav_file(self.file_ls
                         temp_file.close()
                         self.file_name = window.rec_settings.FolderLabel.text() + '/' + window.rec_settings.NamePrefixLabel.text() + \
                             datetime.datetime.now().strftime("_%Y_%m_%d_%H%M%S") + \
                             '.wav'
-                        temp_file = SoundFile(self.file_name, 'w', self.rate, 1, 'PCM_16')
+                        temp_file = SoundFile(self.file_name, 'w+', self.rate, 1, 'PCM_16')
                 else:
                     # Wait a short amount of time for more data to be
                     # acquired.
@@ -625,7 +623,6 @@ class DaqThread(QObject):
 
     # @pyqtSlot() NOT WORKING
     def stop_daq_thread(self):
-        print('Stop daq thread')
         self.status = Status.IDLE
         ul.stop_background(self.board_num, FunctionType.AIFUNCTION)
 
