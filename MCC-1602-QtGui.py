@@ -1,3 +1,4 @@
+from numpy.testing._private.utils import print_assert_equal
 from CadicSoft_v2_ui import *
 # from CadicSoft_TabsVersion import *
 from SettingsWindow_ui import *
@@ -34,8 +35,8 @@ from soundfile import SoundFile
 import resampy
 
 
-def trap_exc_during_debug(*args):
-    print(args)
+def trap_exc_during_debug(exctype, value, tback):
+    print('line: ', tback.tb_lineno)
 
 
 sys.excepthook = trap_exc_during_debug
@@ -101,7 +102,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.CHUNKSZ = 1024  # int(self.srate/1000)
         self.plot_iter = 0
         # TEST SPEED LIMITS WITH BUFFER LENGTH AND TIMER INTERVAL
-        self.max_buffer_len = 10
+        # self.time_window = 0.5 # plot length in seconds
+        # self.max_buffer_len = np.int(self.srate*self.time_window/self.CHUNKSZ)
+        self.max_buffer_len = 100
         self.timer_interval = 10
 
         self.data_buffer = deque([],self.max_buffer_len)
@@ -119,22 +122,31 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.forceWorkerReset()
 
     def set_plot_props(self):
-        # TODO: cehck for vispy module
+        # TODO: check for vispy module
 
         # Time Plot Properties
         self.win = self.graphicsView
         ############## test 3 GraphicsLayoutWidget ####################################
         self.win.clear()
-        self.max_chunks = 10
         self.p1 = self.win.addPlot()
         self.empty_plot()
         self.p1.setDownsampling(mode='peak')
         self.p1.disableAutoRange()
-        self.p1.setXRange(-self.CHUNKSZ, 0)
+        self.p1.setXRange(0, self.CHUNKSZ*self.max_buffer_len, padding=0)#self.max_buffer_len)
         self.p1.setYRange(-32768, 32767)
         self.ptr = 0
-        self.p1.setLabel(axis='left', text='Time [s]')
-        self.p1.setLabel(axis='bottom', text='Amplitude [counts]')
+        self.p1.setLabel(axis='bottom', text='Time [s]')
+        self.p1.setLabel(axis='left', text='Amplitude [counts]')
+        ticks = [[(0,'0'),
+            (int(self.max_buffer_len*self.CHUNKSZ),str(self.max_buffer_len*self.CHUNKSZ/self.srate))
+            # (int(0.25*self.max_buffer_len*self.CHUNKSZ),str(0.25*self.time_window)),
+            # (int(0.5*self.max_buffer_len*self.CHUNKSZ),str(0.5*self.time_window)),
+            # (int(0.75*self.max_buffer_len*self.CHUNKSZ),str(0.75*self.time_window)),
+            # (int(self.max_buffer_len*self.CHUNKSZ),str(self.time_window))
+            ]]
+        
+        xax = self.p1.getAxis('bottom')
+        xax.setTicks(ticks)
         # self.win.addLabel('Amplitud [counts]', row=0, col=0, angle=-90)
 
         #####################################################################################
@@ -144,20 +156,24 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.win2.clear()
         self.win2.enableAutoRange(False, False)
         Xffts = 1024  # Number of ffts along X axis
-        window_len = self.CHUNKSZ/self.srate  # Time window length
-        spect_len = window_len * Xffts  # Spectrogram length
+        sp_window_len = self.CHUNKSZ/self.srate  # Time window length
+        spect_len = sp_window_len * Xffts  # Spectrogram length
 
         self.img_array = np.zeros((Xffts, int(self.CHUNKSZ/2)+1))
         self.win2.plotItem.setRange(
-            xRange=[0, spect_len-2*window_len], yRange=[0, self.srate/2+100], padding=0,
+            xRange=[0, spect_len-2*sp_window_len], yRange=[0, self.srate/2+100], padding=0,
             disableAutoRange=True)
         self.win2.setMouseEnabled(x=True, y=True)
         self.win2.setLabel('left', 'Frequency', units='Hz')
         self.win2.setLabel('bottom', 'Time', units='s')
-        # ax = self.win2.getAxis('bottom')
-        # ax.setTicks([
-        #     [],
-        #     [], ])
+        ax = self.win2.getAxis('bottom')
+        ax.setTicks([[
+            (0,'0'),
+            (0.25*self.CHUNKSZ*Xffts/self.srate,'7'),
+            (0.5*self.CHUNKSZ*Xffts/self.srate,'15'),
+            (0.75*self.CHUNKSZ*Xffts/self.srate,'22'),
+            (0.98*self.CHUNKSZ*Xffts/self.srate,'29'),
+            ]])
 
         self.win2.setLimits(minXRange=0, maxXRange=spect_len,
                             minYRange=0, maxYRange=self.srate/2+100, xMin=0, xMax=spect_len,
@@ -209,8 +225,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     # Plot allocation
 
     def empty_plot(self):
-        self.timedata = np.zeros(self.CHUNKSZ)
-        self.x = np.arange(0, self.CHUNKSZ, 1)
+        self.timedata = np.zeros(self.CHUNKSZ*self.max_buffer_len)
+        self.x = np.arange(0, self.CHUNKSZ*self.max_buffer_len, 1)
         self.wave = self.p1.plot(self.x, self.timedata, pen=pg.mkPen(
             'b', style=QtCore.Qt.SolidLine), clear=True)
         self.clipBar.setValue(0)
@@ -308,12 +324,16 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     @pyqtSlot()
     def update(self):
         # self.chunk1 = copy(chunk)
-        self.chunk1 = self.data_buffer.popleft()
+        # self.chunk1 = self.data_buffer.popleft()
+        self.chunk_deq = self.data_buffer
 ############### test 5 ################################
-
-        self.wave.setData(self.x, self.chunk1)
+        if len(self.chunk_deq) == self.max_buffer_len:
+            chunk1_np = np.array(self.chunk_deq)
+            self.wave.setData(self.x, np.array(chunk1_np).flatten())
+        
 ######################################################################
         # Spectrogram
+        self.chunk1 = self.data_buffer.popleft()
         # normalized, windowed frequencies in data chunk
         spec = np.fft.rfft(self.chunk1*self.hann) / self.CHUNKSZ  # add ,n=512/128/256
         # spec = np.fft.rfft(self.chunk1*self.hann, n=256) / self.CHUNKSZ  # add ,n=512/128/256
