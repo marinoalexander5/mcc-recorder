@@ -342,10 +342,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         psd = abs(spec)
 
         # # nivel del vúmetro
-        chunk_abs = np.abs(self.chunk1)
+        # chunk_abs = np.abs(self.chunk1)
+        chunk_abs = np.abs(self.data_buffer)
         # avg_vumeter = np.average(chunk_abs)
         peak_val = np.max(chunk_abs)
-        # self.progressBar.setValue(peak_val)}
+        self.progressBar.setValue(peak_val)
 
         # Clip indicator
         if peak_val > 32760:
